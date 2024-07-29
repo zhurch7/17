@@ -44,13 +44,14 @@ var tasks = map[string]Task{
 // getTasks возвращает все задачи
 func getTasks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
 	resp, err := json.Marshal(tasks)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+
+	_, _ = w.Write(resp)
 }
 
 // createTask создает новую задачу
@@ -61,13 +62,20 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	_, ok := tasks[task.ID]
+	if ok {
+		http.Error(w, "Заметка с таким id уже существует", http.StatusBadRequest)
+		return
+	}
+
 	tasks[task.ID] = task
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(task)
 }
 
-// getTaskByID возвращает задачу по ID
-func getTaskByID(w http.ResponseWriter, r *http.Request) {
+// getTask возвращает задачу по ID
+func getTask(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	id := chi.URLParam(r, "id")
 	task, exists := tasks[id]
@@ -75,6 +83,7 @@ func getTaskByID(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(task)
 }
@@ -88,6 +97,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Task not found", http.StatusBadRequest)
 		return
 	}
+
 	delete(tasks, id)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Task with ID %s deleted", id)))
@@ -102,7 +112,7 @@ func main() {
 	// регистрируем маршруты
 	r.Get("/tasks", getTasks)
 	r.Post("/tasks", createTask)
-	r.Get("/tasks/{id}", getTaskByID)
+	r.Get("/tasks/{id}", getTask)
 	r.Delete("/tasks/{id}", deleteTask)
 
 	if err := http.ListenAndServe(":8080", r); err != nil {
